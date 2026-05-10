@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import {
   PriorityBadge,
   TaskStatusBadge,
 } from "@/components/projects/StatusBadge";
-import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import { useTasksByProject } from "@/lib/hooks/queries";
 import {
   usePriorityById,
@@ -27,7 +26,6 @@ export function TaskList({ projectId }: { projectId: number }) {
   const getUserById = useUserById();
   const getTaskStatus = useTaskStatusById();
   const getPriority = usePriorityById();
-  const [openTaskId, setOpenTaskId] = useState<number | null>(null);
 
   if (isLoading) {
     return (
@@ -52,55 +50,54 @@ export function TaskList({ projectId }: { projectId: number }) {
   }
 
   return (
-    <>
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium">Zadatak</th>
-              <th className="px-4 py-2 text-left font-medium">Status</th>
-              <th className="px-4 py-2 text-left font-medium">Prioritet</th>
-              <th className="px-4 py-2 text-left font-medium">Dodijeljeni</th>
-              <th className="px-4 py-2 text-left font-medium">Rok</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projectTasks.map((task) => {
-              const status = getTaskStatus(task.statusId);
-              const priority = getPriority(task.priorityId);
-              const assignee = getUserById(task.assigneeId);
-              return (
-                <tr
-                  key={task.id}
-                  className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40"
-                  onClick={() => setOpenTaskId(task.id)}
-                >
-                  <td className="px-4 py-2.5 text-foreground">{task.name}</td>
-                  <td className="px-4 py-2.5">
-                    {status ? <TaskStatusBadge name={status.name} /> : null}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {priority ? <PriorityBadge name={priority.name} /> : null}
-                  </td>
-                  <td className="px-4 py-2.5 text-foreground">
-                    {assignee
-                      ? `${assignee.firstName} ${assignee.lastName}`
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
-                    {formatDate(task.deadline)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <TaskDetailDialog
-        taskId={openTaskId}
-        projectId={projectId}
-        onClose={() => setOpenTaskId(null)}
-      />
-    </>
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-muted-foreground">
+          <tr>
+            <th className="px-4 py-2 text-left font-medium">Zadatak</th>
+            <th className="px-4 py-2 text-left font-medium">Status</th>
+            <th className="px-4 py-2 text-left font-medium">Prioritet</th>
+            <th className="px-4 py-2 text-left font-medium">Dodijeljeni</th>
+            <th className="px-4 py-2 text-left font-medium">Rok</th>
+          </tr>
+        </thead>
+        <tbody>
+          {projectTasks.map((task) => {
+            const status = getTaskStatus(task.statusId);
+            const priority = getPriority(task.priorityId);
+            const assignee = getUserById(task.assigneeId);
+            return (
+              <tr
+                key={task.id}
+                className="border-t border-border transition-colors hover:bg-muted/40"
+              >
+                <td className="px-4 py-2.5">
+                  <Link
+                    href={`/projects/${projectId}/tasks/${task.id}`}
+                    className="block font-medium text-foreground hover:underline"
+                  >
+                    {task.name}
+                  </Link>
+                </td>
+                <td className="px-4 py-2.5">
+                  {status ? <TaskStatusBadge name={status.name} /> : null}
+                </td>
+                <td className="px-4 py-2.5">
+                  {priority ? <PriorityBadge name={priority.name} /> : null}
+                </td>
+                <td className="px-4 py-2.5 text-foreground">
+                  {assignee
+                    ? `${assignee.firstName} ${assignee.lastName}`
+                    : "—"}
+                </td>
+                <td className="px-4 py-2.5 text-muted-foreground">
+                  {formatDate(task.deadline)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

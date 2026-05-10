@@ -45,6 +45,14 @@ export function useTasksByProject(projectId: number) {
   });
 }
 
+export function useTask(taskId: number) {
+  return useQuery({
+    queryKey: ["tasks", taskId],
+    queryFn: () => tasksApi.get(taskId),
+    enabled: Number.isFinite(taskId),
+  });
+}
+
 export function useTaskComments(taskId: number | null) {
   return useQuery({
     queryKey: ["comments", { taskId }],
@@ -144,7 +152,8 @@ export function useUpdateTask(taskId: number, projectId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: TaskUpdateDto) => tasksApi.update(taskId, dto),
-    onSuccess: () => {
+    onSuccess: (task) => {
+      qc.setQueryData(["tasks", taskId], task);
       qc.invalidateQueries({ queryKey: ["tasks", { projectId }] });
     },
   });
