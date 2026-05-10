@@ -30,6 +30,7 @@ INSERT INTO uloga (naziv) VALUES
     ('Zaposleni');
 
 INSERT INTO status_projekta (naziv) VALUES
+('U pripremi'),
     ('Aktivan'),
     ('Završen'),
     ('Obustavljan');
