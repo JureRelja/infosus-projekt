@@ -78,3 +78,31 @@ dz3/
 │   └── seed-db.sh        Pokreće sup_seed.sql
 └── SUP_specifikacija.md
 ```
+
+## Pokretanje unit testova (backend)
+
+```bash
+cd backend
+./gradlew test
+```
+
+HTML izvještaj nakon pokretanja:
+
+```
+backend/build/reports/tests/test/index.html
+```
+
+Pokretanje samo određene grupe testova:
+
+```bash
+./gradlew test --tests "com.example.demo.services.*"      # samo servisi
+./gradlew test --tests "com.example.demo.controllers.*"   # samo kontroleri
+./gradlew test --tests "com.example.demo.repositories.*"  # samo repozitoriji
+```
+
+Pokretanje jedne testne klase ili pojedinačne metode:
+
+```bash
+./gradlew test --tests "com.example.demo.controllers.TaskControllerTest"
+./gradlew test --tests "com.example.demo.services.TaskServiceTest.create_stampsInitialStatusIdOne"
+```
