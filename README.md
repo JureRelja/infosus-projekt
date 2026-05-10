@@ -1,0 +1,1 @@
+Ovo je repozitorij za treću domaću zadaću iz kolegija Informacijski sustavi.
