@@ -1,6 +1,7 @@
 "use client";
 
-import { useSupStore } from "@/lib/store/SupStore";
+import { useTaskComments } from "@/lib/hooks/queries";
+import { useUserById } from "@/lib/hooks/lookups";
 
 function initials(firstName: string, lastName: string) {
   return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
@@ -16,13 +17,25 @@ function formatTime(iso: string) {
   });
 }
 
-export function CommentList({ projectId }: { projectId: number }) {
-  const { comments, getUserById } = useSupStore();
-  const projectComments = comments
-    .filter((c) => c.projectId === projectId)
+export function TaskCommentList({ taskId }: { taskId: number }) {
+  const { data: comments, isLoading, isError } = useTaskComments(taskId);
+  const getUserById = useUserById();
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground italic">Učitavanje…</p>;
+  }
+
+  if (isError) {
+    return (
+      <p className="text-sm text-destructive">Greška pri dohvaćanju komentara.</p>
+    );
+  }
+
+  const sorted = (comments ?? [])
+    .slice()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  if (projectComments.length === 0) {
+  if (sorted.length === 0) {
     return (
       <p className="text-sm text-muted-foreground italic">
         Nema komentara — budi prvi!
@@ -32,7 +45,7 @@ export function CommentList({ projectId }: { projectId: number }) {
 
   return (
     <ul className="space-y-4">
-      {projectComments.map((c) => {
+      {sorted.map((c) => {
         const author = getUserById(c.authorId);
         return (
           <li key={c.id} className="flex gap-3">
@@ -42,7 +55,9 @@ export function CommentList({ projectId }: { projectId: number }) {
             <div className="flex-1 space-y-1">
               <div className="flex items-baseline gap-2 text-sm">
                 <span className="font-medium text-foreground">
-                  {author ? `${author.firstName} ${author.lastName}` : "Nepoznat"}
+                  {author
+                    ? `${author.firstName} ${author.lastName}`
+                    : "Nepoznat"}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {formatTime(c.createdAt)}

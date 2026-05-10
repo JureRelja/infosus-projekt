@@ -21,13 +21,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useSupStore } from "@/lib/store/SupStore";
+import {
+  useCreateTask,
+  usePriorities,
+  useProject,
+} from "@/lib/hooks/queries";
+import { useUserById } from "@/lib/hooks/lookups";
+import { CURRENT_USER_ID } from "@/lib/currentUser";
 
 const UNASSIGNED = "__unassigned__";
 
 export function AddTaskDialog({ projectId }: { projectId: number }) {
-  const { priorities, getProjectById, getUserById, addTask } = useSupStore();
-  const project = getProjectById(projectId);
+  const { data: project } = useProject(projectId);
+  const { data: priorities = [] } = usePriorities();
+  const getUserById = useUserById();
+  const createTask = useCreateTask(projectId);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -53,16 +61,23 @@ export function AddTaskDialog({ projectId }: { projectId: number }) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    addTask({
-      projectId,
-      name: trimmed,
-      description: description.trim(),
-      priorityId: Number(priorityId),
-      assigneeId: assigneeId === UNASSIGNED ? null : Number(assigneeId),
-      deadline: deadline || null,
-    });
-    reset();
-    setOpen(false);
+    createTask.mutate(
+      {
+        projectId,
+        name: trimmed,
+        description: description.trim(),
+        priorityId: Number(priorityId),
+        assigneeId: assigneeId === UNASSIGNED ? null : Number(assigneeId),
+        creatorId: CURRENT_USER_ID,
+        deadline: deadline || null,
+      },
+      {
+        onSuccess: () => {
+          reset();
+          setOpen(false);
+        },
+      },
+    );
   };
 
   return (
@@ -146,16 +161,25 @@ export function AddTaskDialog({ projectId }: { projectId: number }) {
               </SelectContent>
             </Select>
           </div>
+          {createTask.isError ? (
+            <p className="text-sm text-destructive">
+              Greška pri spremanju zadatka.
+            </p>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
               variant="ghost"
               onClick={() => setOpen(false)}
+              disabled={createTask.isPending}
             >
               Odustani
             </Button>
-            <Button type="submit" disabled={!name.trim()}>
-              Spremi
+            <Button
+              type="submit"
+              disabled={!name.trim() || createTask.isPending}
+            >
+              {createTask.isPending ? "Spremanje…" : "Spremi"}
             </Button>
           </DialogFooter>
         </form>

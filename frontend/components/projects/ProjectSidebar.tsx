@@ -8,7 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSupStore } from "@/lib/store/SupStore";
+import {
+  useProject,
+  useProjectStatuses,
+  useUpdateProjectStatus,
+} from "@/lib/hooks/queries";
+import { useUserById } from "@/lib/hooks/lookups";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("hr-HR", {
@@ -23,13 +28,11 @@ function initials(firstName: string, lastName: string) {
 }
 
 export function ProjectSidebar({ projectId }: { projectId: number }) {
-  const {
-    getProjectById,
-    getUserById,
-    projectStatuses,
-    updateProjectStatus,
-  } = useSupStore();
-  const project = getProjectById(projectId);
+  const { data: project } = useProject(projectId);
+  const { data: projectStatuses = [] } = useProjectStatuses();
+  const updateStatus = useUpdateProjectStatus(projectId);
+  const getUserById = useUserById();
+
   if (!project) return null;
   const manager = getUserById(project.managerId);
   const members = project.memberIds
@@ -42,7 +45,8 @@ export function ProjectSidebar({ projectId }: { projectId: number }) {
         <Label>Status</Label>
         <Select
           value={String(project.statusId)}
-          onValueChange={(v) => updateProjectStatus(projectId, Number(v))}
+          onValueChange={(v) => updateStatus.mutate(Number(v))}
+          disabled={updateStatus.isPending}
         >
           <SelectTrigger className="w-full">
             <SelectValue />

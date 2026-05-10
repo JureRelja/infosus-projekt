@@ -3,28 +3,32 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useSupStore } from "@/lib/store/SupStore";
+import {
+  useProject,
+  useUpdateProjectDescription,
+} from "@/lib/hooks/queries";
 
 export function ProjectDescription({ projectId }: { projectId: number }) {
-  const { getProjectById, updateProjectDescription } = useSupStore();
-  const project = getProjectById(projectId);
+  const { data: project } = useProject(projectId);
+  const update = useUpdateProjectDescription(projectId);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(project?.description ?? "");
+  const [draft, setDraft] = useState("");
 
   if (!project) return null;
 
   const start = () => {
-    setDraft(project.description);
+    setDraft(project.description ?? "");
     setEditing(true);
   };
 
   const save = () => {
-    updateProjectDescription(projectId, draft.trim());
-    setEditing(false);
+    update.mutate(draft.trim(), {
+      onSuccess: () => setEditing(false),
+    });
   };
 
   const cancel = () => {
-    setDraft(project.description);
+    setDraft(project.description ?? "");
     setEditing(false);
   };
 
@@ -46,13 +50,19 @@ export function ProjectDescription({ projectId }: { projectId: number }) {
             rows={5}
             placeholder="Opis projekta…"
             autoFocus
+            disabled={update.isPending}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={cancel}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={cancel}
+              disabled={update.isPending}
+            >
               Odustani
             </Button>
-            <Button size="sm" onClick={save}>
-              Spremi
+            <Button size="sm" onClick={save} disabled={update.isPending}>
+              {update.isPending ? "Spremanje…" : "Spremi"}
             </Button>
           </div>
         </div>

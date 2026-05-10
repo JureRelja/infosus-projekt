@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { useSupStore } from "@/lib/store/SupStore";
+import { useProjects } from "@/lib/hooks/queries";
+import { useProjectStatusById, useUserById } from "@/lib/hooks/lookups";
 import { ProjectStatusBadge } from "./StatusBadge";
 
 function formatDate(iso: string) {
@@ -14,9 +15,25 @@ function formatDate(iso: string) {
 }
 
 export function ProjectListTable() {
-  const { projects, getUserById, getProjectStatus } = useSupStore();
+  const { data: projects, isLoading, isError } = useProjects();
+  const getUserById = useUserById();
+  const getProjectStatus = useProjectStatusById();
 
-  if (projects.length === 0) {
+  if (isLoading) {
+    return (
+      <Card className="p-8 text-center text-muted-foreground">Učitavanje…</Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="p-8 text-center text-destructive">
+        Greška pri dohvaćanju projekata.
+      </Card>
+    );
+  }
+
+  if (!projects || projects.length === 0) {
     return (
       <Card className="p-8 text-center text-muted-foreground">
         Nema projekata.

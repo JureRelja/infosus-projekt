@@ -7,7 +7,7 @@ import { ProjectDescription } from "@/components/projects/ProjectDescription";
 import { ProjectSidebar } from "@/components/projects/ProjectSidebar";
 import { ProjectTabs } from "@/components/projects/ProjectTabs";
 import { Separator } from "@/components/ui/separator";
-import { useSupStore } from "@/lib/store/SupStore";
+import { useProject } from "@/lib/hooks/queries";
 
 export default function ProjectDetailPage({
   params,
@@ -16,10 +16,21 @@ export default function ProjectDetailPage({
 }) {
   const { id } = use(params);
   const projectId = Number(id);
-  const { getProjectById } = useSupStore();
-  const project = getProjectById(projectId);
+  const { data: project, isLoading, isError } = useProject(projectId);
 
-  if (!Number.isFinite(projectId) || !project) {
+  if (!Number.isFinite(projectId)) {
+    notFound();
+  }
+
+  if (isLoading) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-6 py-10 text-muted-foreground">
+        Učitavanje…
+      </main>
+    );
+  }
+
+  if (isError || !project) {
     notFound();
   }
 
