@@ -6,10 +6,12 @@ import com.example.demo.dtos.TaskUpdateDto;
 import com.example.demo.exceptions.ResourceNotFoundException;
 import com.example.demo.models.Priority;
 import com.example.demo.models.Project;
+import com.example.demo.models.ProjectMember;
 import com.example.demo.models.Task;
 import com.example.demo.models.TaskStatus;
 import com.example.demo.models.User;
 import com.example.demo.repositories.PriorityRepository;
+import com.example.demo.repositories.ProjectMemberRepository;
 import com.example.demo.repositories.ProjectRepository;
 import com.example.demo.repositories.TaskRepository;
 import com.example.demo.repositories.TaskStatusRepository;
@@ -40,6 +42,7 @@ class TaskServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private PriorityRepository priorityRepository;
     @Mock private TaskStatusRepository taskStatusRepository;
+    @Mock private ProjectMemberRepository projectMemberRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -53,7 +56,16 @@ class TaskServiceTest {
     private static Project project(Integer id) {
         Project p = new Project();
         p.setId(id);
+        p.setStartDate(LocalDate.of(2026, 1, 1));
+        p.setEndDate(LocalDate.of(2026, 12, 31));
         return p;
+    }
+
+    private static ProjectMember member(Project project, User user) {
+        ProjectMember pm = new ProjectMember();
+        pm.setProject(project);
+        pm.setUser(user);
+        return pm;
     }
 
     private static Priority priority(Integer id) {
@@ -132,12 +144,15 @@ class TaskServiceTest {
         TaskCreateDto dto = new TaskCreateDto(
                 "Task", "desc", 2, 1, 11, 10, LocalDate.of(2026, 6, 1)
         );
-        when(projectRepository.findById(1)).thenReturn(Optional.of(project(1)));
+        Project p1 = project(1);
+        when(projectRepository.findById(1)).thenReturn(Optional.of(p1));
         when(priorityRepository.findById(2)).thenReturn(Optional.of(priority(2)));
         when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
         when(userRepository.findById(11)).thenReturn(Optional.of(user(11)));
         when(taskStatusRepository.findById(TaskService.INITIAL_STATUS_ID))
                 .thenReturn(Optional.of(status(1)));
+        when(projectMemberRepository.findByProjectId(1))
+                .thenReturn(List.of(member(p1, user(11))));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
             Task t = inv.getArgument(0);
             t.setId(42);
@@ -218,12 +233,15 @@ class TaskServiceTest {
     @Test
     void update_replacesAllFieldsIncludingStatus() {
         Task existing = task(1, project(1), priority(1), status(1), user(10), user(11));
+        Project p2 = project(2);
         when(taskRepository.findById(1)).thenReturn(Optional.of(existing));
-        when(projectRepository.findById(2)).thenReturn(Optional.of(project(2)));
+        when(projectRepository.findById(2)).thenReturn(Optional.of(p2));
         when(priorityRepository.findById(3)).thenReturn(Optional.of(priority(3)));
         when(taskStatusRepository.findById(4)).thenReturn(Optional.of(status(4)));
         when(userRepository.findById(20)).thenReturn(Optional.of(user(20)));
         when(userRepository.findById(21)).thenReturn(Optional.of(user(21)));
+        when(projectMemberRepository.findByProjectId(2))
+                .thenReturn(List.of(member(p2, user(21))));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskUpdateDto dto = new TaskUpdateDto(
@@ -286,5 +304,78 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> taskService.delete(99))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void create_throwsWhenAssigneeIsNotProjectMember() {
+        TaskCreateDto dto = new TaskCreateDto(
+                "Task", null, 1, 1, 11, 10, null
+        );
+        Project p1 = project(1);
+        p1.setManager(user(99));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(p1));
+        when(priorityRepository.findById(1)).thenReturn(Optional.of(priority(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        when(userRepository.findById(11)).thenReturn(Optional.of(user(11)));
+        when(taskStatusRepository.findById(TaskService.INITIAL_STATUS_ID))
+                .thenReturn(Optional.of(status(1)));
+        when(projectMemberRepository.findByProjectId(1)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> taskService.create(dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nije član projekta");
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void create_allowsAssigneeWhoIsProjectManager() {
+        TaskCreateDto dto = new TaskCreateDto(
+                "Task", null, 1, 1, 10, 10, null
+        );
+        Project p1 = project(1);
+        p1.setManager(user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(p1));
+        when(priorityRepository.findById(1)).thenReturn(Optional.of(priority(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        when(taskStatusRepository.findById(TaskService.INITIAL_STATUS_ID))
+                .thenReturn(Optional.of(status(1)));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskDto result = taskService.create(dto);
+
+        assertThat(result.assigneeId()).isEqualTo(10);
+    }
+
+    @Test
+    void create_throwsWhenDeadlineAfterProjectEnd() {
+        TaskCreateDto dto = new TaskCreateDto(
+                "Task", null, 1, 1, null, 10, LocalDate.of(2027, 1, 1)
+        );
+        when(projectRepository.findById(1)).thenReturn(Optional.of(project(1)));
+        when(priorityRepository.findById(1)).thenReturn(Optional.of(priority(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        when(taskStatusRepository.findById(TaskService.INITIAL_STATUS_ID))
+                .thenReturn(Optional.of(status(1)));
+
+        assertThatThrownBy(() -> taskService.create(dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Rok zadatka");
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void create_throwsWhenDeadlineBeforeProjectStart() {
+        TaskCreateDto dto = new TaskCreateDto(
+                "Task", null, 1, 1, null, 10, LocalDate.of(2025, 12, 31)
+        );
+        when(projectRepository.findById(1)).thenReturn(Optional.of(project(1)));
+        when(priorityRepository.findById(1)).thenReturn(Optional.of(priority(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        when(taskStatusRepository.findById(TaskService.INITIAL_STATUS_ID))
+                .thenReturn(Optional.of(status(1)));
+
+        assertThatThrownBy(() -> taskService.create(dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Rok zadatka");
     }
 }

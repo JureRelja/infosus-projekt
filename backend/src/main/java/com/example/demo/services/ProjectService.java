@@ -10,14 +10,17 @@ import com.example.demo.mappers.ProjectMapper;
 import com.example.demo.models.Project;
 import com.example.demo.models.ProjectMember;
 import com.example.demo.models.ProjectStatus;
+import com.example.demo.models.Task;
 import com.example.demo.models.User;
 import com.example.demo.repositories.ProjectMemberRepository;
 import com.example.demo.repositories.ProjectRepository;
 import com.example.demo.repositories.ProjectStatusRepository;
+import com.example.demo.repositories.TaskRepository;
 import com.example.demo.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,21 +29,27 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class ProjectService {
 
+    static final String COMPLETED_STATUS_NAME = "Završen";
+    static final String CLOSED_TASK_STATUS_NAME = "Zatvoren";
+
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectStatusRepository projectStatusRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
     public ProjectService(
             ProjectRepository projectRepository,
             ProjectMemberRepository projectMemberRepository,
             ProjectStatusRepository projectStatusRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            TaskRepository taskRepository
     ) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.projectStatusRepository = projectStatusRepository;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
     }
 
     public List<ProjectDto> findAll() {
@@ -86,6 +95,8 @@ public class ProjectService {
         ProjectStatus status = requireStatus(dto.statusId());
         User manager = requireUser(dto.managerId(), "Manager");
 
+        validateProjectDateRange(id, dto.startDate(), dto.endDate());
+
         project.setName(dto.name());
         project.setDescription(dto.description());
         project.setStartDate(dto.startDate());
@@ -101,7 +112,9 @@ public class ProjectService {
     @Transactional
     public ProjectDto patchStatus(Integer id, ProjectStatusPatchDto dto) {
         Project project = getEntityById(id);
-        project.setStatus(requireStatus(dto.statusId()));
+        ProjectStatus newStatus = requireStatus(dto.statusId());
+        validateCanCompleteProject(id, newStatus);
+        project.setStatus(newStatus);
         Project saved = projectRepository.save(project);
         return ProjectMapper.toDto(saved, loadMemberIds(saved.getId()));
     }
@@ -118,6 +131,51 @@ public class ProjectService {
     public void delete(Integer id) {
         Project project = getEntityById(id);
         projectRepository.delete(project);
+    }
+
+    private void validateCanCompleteProject(Integer projectId, ProjectStatus newStatus) {
+        if (newStatus == null || !COMPLETED_STATUS_NAME.equalsIgnoreCase(newStatus.getName())) {
+            return;
+        }
+        List<Task> openTasks = taskRepository.findByProjectId(projectId).stream()
+                .filter(t -> t.getStatus() == null
+                        || !CLOSED_TASK_STATUS_NAME.equalsIgnoreCase(t.getStatus().getName()))
+                .toList();
+        if (!openTasks.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Projekt se ne može označiti kao završen — postoji " + openTasks.size()
+                            + " nezavršenih zadataka.");
+        }
+    }
+
+    private void validateProjectDateRange(Integer projectId, LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) return;
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException(
+                    "Datum završetka projekta (" + endDate + ") ne može biti prije datuma početka ("
+                            + startDate + ").");
+        }
+        LocalDate latestDeadline = taskRepository.findByProjectId(projectId).stream()
+                .map(Task::getDeadline)
+                .filter(d -> d != null)
+                .max(LocalDate::compareTo)
+                .orElse(null);
+        if (latestDeadline != null && latestDeadline.isAfter(endDate)) {
+            throw new IllegalArgumentException(
+                    "Datum završetka projekta (" + endDate
+                            + ") mora pokrivati rok najkasnijeg zadatka (" + latestDeadline + ").");
+        }
+        LocalDate earliestDeadline = taskRepository.findByProjectId(projectId).stream()
+                .map(Task::getDeadline)
+                .filter(d -> d != null)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        if (earliestDeadline != null && earliestDeadline.isBefore(startDate)) {
+            throw new IllegalArgumentException(
+                    "Datum početka projekta (" + startDate
+                            + ") mora biti prije ili jednak roku najranijeg zadatka ("
+                            + earliestDeadline + ").");
+        }
     }
 
     private Project getEntityById(Integer id) {

@@ -6,13 +6,17 @@ import com.example.demo.dtos.ProjectDto;
 import com.example.demo.dtos.ProjectStatusPatchDto;
 import com.example.demo.dtos.ProjectUpdateDto;
 import com.example.demo.exceptions.ResourceNotFoundException;
+import com.example.demo.models.Priority;
 import com.example.demo.models.Project;
 import com.example.demo.models.ProjectMember;
 import com.example.demo.models.ProjectStatus;
+import com.example.demo.models.Task;
+import com.example.demo.models.TaskStatus;
 import com.example.demo.models.User;
 import com.example.demo.repositories.ProjectMemberRepository;
 import com.example.demo.repositories.ProjectRepository;
 import com.example.demo.repositories.ProjectStatusRepository;
+import com.example.demo.repositories.TaskRepository;
 import com.example.demo.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +51,7 @@ class ProjectServiceTest {
     @Mock private ProjectMemberRepository projectMemberRepository;
     @Mock private ProjectStatusRepository projectStatusRepository;
     @Mock private UserRepository userRepository;
+    @Mock private TaskRepository taskRepository;
 
     @InjectMocks
     private ProjectService projectService;
@@ -56,6 +61,37 @@ class ProjectServiceTest {
         s.setId(id);
         s.setName("Status" + id);
         return s;
+    }
+
+    private static ProjectStatus completedStatus() {
+        ProjectStatus s = new ProjectStatus();
+        s.setId(2);
+        s.setName("Završen");
+        return s;
+    }
+
+    private static TaskStatus taskStatus(Integer id, String name) {
+        TaskStatus s = new TaskStatus();
+        s.setId(id);
+        s.setName(name);
+        s.setOrderIndex(id);
+        return s;
+    }
+
+    private static Task task(Integer id, Project pr, TaskStatus st, java.time.LocalDate deadline) {
+        Task t = new Task();
+        t.setId(id);
+        t.setName("T" + id);
+        t.setProject(pr);
+        t.setStatus(st);
+        t.setDeadline(deadline);
+        Priority p = new Priority();
+        p.setId(1);
+        p.setName("P");
+        p.setOrderIndex(1);
+        t.setPriority(p);
+        t.setCreator(user(1));
+        return t;
     }
 
     private static User user(Integer id) {
@@ -322,5 +358,99 @@ class ProjectServiceTest {
         assertThatThrownBy(() -> projectService.delete(99))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(projectRepository, never()).delete(any());
+    }
+
+    @Test
+    void patchStatus_throwsWhenCompletingProjectWithOpenTasks() {
+        Project p = project(1, status(1), user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(p));
+        when(projectStatusRepository.findById(2)).thenReturn(Optional.of(completedStatus()));
+        TaskStatus open = taskStatus(2, "U postupku");
+        when(taskRepository.findByProjectId(1))
+                .thenReturn(List.of(task(100, p, open, null)));
+
+        assertThatThrownBy(() -> projectService.patchStatus(1, new ProjectStatusPatchDto(2)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nezavršenih");
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void patchStatus_allowsCompletingProjectWhenAllTasksClosed() {
+        Project p = project(1, status(1), user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(p));
+        when(projectStatusRepository.findById(2)).thenReturn(Optional.of(completedStatus()));
+        TaskStatus closed = taskStatus(4, "Zatvoren");
+        when(taskRepository.findByProjectId(1))
+                .thenReturn(List.of(task(100, p, closed, null), task(101, p, closed, null)));
+        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(projectMemberRepository.findByProjectId(1)).thenReturn(List.of());
+
+        ProjectDto result = projectService.patchStatus(1, new ProjectStatusPatchDto(2));
+
+        assertThat(result.statusId()).isEqualTo(2);
+    }
+
+    @Test
+    void update_throwsWhenEndDateBeforeLatestTaskDeadline() {
+        Project existing = project(1, status(1), user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(projectStatusRepository.findById(1)).thenReturn(Optional.of(status(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        TaskStatus open = taskStatus(2, "U postupku");
+        when(taskRepository.findByProjectId(1)).thenReturn(List.of(
+                task(100, existing, open, LocalDate.of(2026, 11, 1))
+        ));
+
+        ProjectUpdateDto dto = new ProjectUpdateDto(
+                "P", null,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 6, 1),
+                1, 10, List.of()
+        );
+
+        assertThatThrownBy(() -> projectService.update(1, dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("najkasnijeg zadatka");
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void update_throwsWhenStartDateAfterEarliestTaskDeadline() {
+        Project existing = project(1, status(1), user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(projectStatusRepository.findById(1)).thenReturn(Optional.of(status(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+        TaskStatus open = taskStatus(2, "U postupku");
+        when(taskRepository.findByProjectId(1)).thenReturn(List.of(
+                task(100, existing, open, LocalDate.of(2026, 2, 1))
+        ));
+
+        ProjectUpdateDto dto = new ProjectUpdateDto(
+                "P", null,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 12, 31),
+                1, 10, List.of()
+        );
+
+        assertThatThrownBy(() -> projectService.update(1, dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("najranijeg zadatka");
+    }
+
+    @Test
+    void update_throwsWhenEndBeforeStart() {
+        Project existing = project(1, status(1), user(10));
+        when(projectRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(projectStatusRepository.findById(1)).thenReturn(Optional.of(status(1)));
+        when(userRepository.findById(10)).thenReturn(Optional.of(user(10)));
+
+        ProjectUpdateDto dto = new ProjectUpdateDto(
+                "P", null,
+                LocalDate.of(2026, 6, 1), LocalDate.of(2026, 1, 1),
+                1, 10, List.of()
+        );
+
+        assertThatThrownBy(() -> projectService.update(1, dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ne može biti prije");
     }
 }
