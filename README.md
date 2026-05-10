@@ -1,1 +1,80 @@
-Ovo je repozitorij za treću domaću zadaću iz kolegija Informacijski sustavi.
+# SUP — Sustav upravljanja projektima
+
+Repozitorij za treću domaću zadaću iz kolegija Informacijski sustavi.
+
+Aplikacija se sastoji od:
+- **backend** — Spring Boot 4 (Java 21, Gradle), PostgreSQL
+- **frontend** — Next.js 16 (React 19, Tailwind)
+
+## Preduvjeti
+
+- Java 21
+- PostgreSQL 14+ (s korisnikom `postgres` i lozinkom `postgres` ili uz prilagodbu env varijabli)
+- Node.js 20+ i npm
+- `psql` u `PATH`-u
+
+Postavke konekcije na bazu nalaze se u `backend/src/main/resources/application.properties`.
+
+## Redoslijed pokretanja
+
+Sve naredbe izvršavaju se iz korijena repozitorija.
+
+### 1. Kreiranje baze
+
+Skripta kreira bazu `infosus` (ako ne postoji) i izvršava `backend/sup_baza.sql`
+(tablice, indeksi, šifrarnici).
+
+```bash
+./scripts/create-db.sh
+```
+
+Po potrebi prilagođavaju se env varijable: `DB_NAME`, `DB_USER`, `DB_HOST`, `DB_PORT`.
+
+```bash
+DB_USER=myuser DB_PORT=5433 ./scripts/create-db.sh
+```
+
+### 2. Pokretanje backenda
+
+```bash
+cd backend
+./gradlew bootRun
+```
+
+Backend sluša na `http://localhost:8080`. Hibernate (`ddl-auto=update`) uskladit
+će shemu s JPA modelima ako je potrebno.
+
+### 3. Učitavanje seed podataka
+
+U novom terminalu, dok backend i dalje radi:
+
+```bash
+./scripts/seed-db.sh
+```
+
+Skripta izvršava `backend/sup_seed.sql` i unosi testne korisnike, projekte,
+zadatke, komentare i ostale entitete.
+
+### 4. Pokretanje frontenda
+
+```bash
+cd frontend
+npm install   # samo prvi put
+npm run dev
+```
+
+Frontend je dostupan na `http://localhost:3000`.
+
+## Struktura
+
+```
+dz3/
+├── backend/              Spring Boot aplikacija
+│   ├── sup_baza.sql      DDL + šifrarnici
+│   └── sup_seed.sql      Testni podaci
+├── frontend/             Next.js aplikacija
+├── scripts/
+│   ├── create-db.sh      Kreira bazu i pokreće sup_baza.sql
+│   └── seed-db.sh        Pokreće sup_seed.sql
+└── SUP_specifikacija.md
+```
