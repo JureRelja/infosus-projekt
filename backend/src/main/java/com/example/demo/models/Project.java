@@ -41,7 +41,8 @@ public class Project {
     @JoinColumn(name = "menadzer_id", nullable = false)
     private User manager;
 
-    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     public Project() {

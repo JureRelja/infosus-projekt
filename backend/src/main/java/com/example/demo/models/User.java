@@ -39,10 +39,11 @@ public class User {
     @JoinColumn(name = "uloga_id", nullable = false)
     private Role role;
 
-    @Column(name = "aktivan", nullable = false)
+    @Column(name = "aktivan", nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
     private Boolean active;
 
-    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     public User() {

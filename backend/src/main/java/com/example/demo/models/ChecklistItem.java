@@ -30,7 +30,8 @@ public class ChecklistItem {
     @JoinColumn(name = "zadatak_id", nullable = false)
     private Task task;
 
-    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     public ChecklistItem() {

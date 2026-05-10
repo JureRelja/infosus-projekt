@@ -50,7 +50,8 @@ public class Task {
     @Column(name = "rok")
     private LocalDate deadline;
 
-    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     public Task() {

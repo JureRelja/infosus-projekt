@@ -1,19 +1,61 @@
 -- ============================================================
 -- SUP — Inicijalno punjenje podataka (seeding)
 --
--- Pretpostavlja da je sup_baza.sql već izvršena.
+-- Pretpostavlja da Hibernate (ddl-auto=update) već kreira shemu
+-- pri pokretanju Spring Boot aplikacije.
+--
+-- Seed je idempotentan: TRUNCATE ... RESTART IDENTITY CASCADE
+-- briše sve i resetira sekvencere, pa ID-evi uvijek kreću od 1.
 -- ============================================================
+
+TRUNCATE TABLE
+    povijest_stanja,
+    stavka,
+    komentar,
+    zadatak,
+    clan_projekta,
+    projekt,
+    korisnik,
+    stanje_zadatka,
+    prioritet,
+    status_projekta,
+    uloga
+RESTART IDENTITY CASCADE;
+
+-- 0. Šifrarnici (lookup tablice)
+
+INSERT INTO uloga (naziv) VALUES
+    ('Direktor'),
+    ('Menadžer'),
+    ('Zaposleni');
+
+INSERT INTO status_projekta (naziv) VALUES
+    ('Aktivan'),
+    ('Završen'),
+    ('Obustavljan');
+
+INSERT INTO prioritet (naziv, redoslijed) VALUES
+    ('Nizak',    1),
+    ('Srednji',  2),
+    ('Visok',    3),
+    ('Kritičan', 4);
+
+INSERT INTO stanje_zadatka (naziv, redoslijed) VALUES
+    ('U pripremi',  1),
+    ('U postupku',  2),
+    ('Na provjeri', 3),
+    ('Zatvoren',    4);
 
 -- 1. Korisnici
 -- Lozinke su bcrypt hashevi testne lozinke 'Test1234!'
 
-INSERT INTO korisnik (korisnicko_ime, lozinka_hash, ime, prezime, email, uloga_id) VALUES
-    ('ihorvat',    '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashDirektor',    'Ivan',  'Horvat',     'ivan.horvat@techsolutions.hr',    1),
-    ('akovacevic', '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashMenadzer1',   'Ana',   'Kovačević',  'ana.kovacevic@techsolutions.hr',  2),
-    ('mbabic',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashMenadzer2',   'Marko', 'Babić',      'marko.babic@techsolutions.hr',    2),
-    ('pnovak',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni1',  'Petra', 'Novak',      'petra.novak@techsolutions.hr',    3),
-    ('ljuric',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni2',  'Luka',  'Jurić',      'luka.juric@techsolutions.hr',     3),
-    ('mtomic',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni3',  'Maja',  'Tomić',      'maja.tomic@techsolutions.hr',     3);
+INSERT INTO korisnik (korisnicko_ime, lozinka_hash, ime, prezime, email, uloga_id, aktivan) VALUES
+    ('ihorvat',    '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashDirektor',    'Ivan',  'Horvat',     'ivan.horvat@techsolutions.hr',    1, TRUE),
+    ('akovacevic', '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashMenadzer1',   'Ana',   'Kovačević',  'ana.kovacevic@techsolutions.hr',  2, TRUE),
+    ('mbabic',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashMenadzer2',   'Marko', 'Babić',      'marko.babic@techsolutions.hr',    2, TRUE),
+    ('pnovak',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni1',  'Petra', 'Novak',      'petra.novak@techsolutions.hr',    3, TRUE),
+    ('ljuric',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni2',  'Luka',  'Jurić',      'luka.juric@techsolutions.hr',     3, TRUE),
+    ('mtomic',     '$2a$10$xJwL5v5Zq1Z8z5z5z5z5zOexamplehashZaposleni3',  'Maja',  'Tomić',      'maja.tomic@techsolutions.hr',     3, TRUE);
 
 -- 2. Projekti
 

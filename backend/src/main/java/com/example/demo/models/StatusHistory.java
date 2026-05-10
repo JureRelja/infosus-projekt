@@ -39,7 +39,8 @@ public class StatusHistory {
     @Column(name = "komentar", columnDefinition = "TEXT")
     private String comment;
 
-    @Column(name = "datum_promjene", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_promjene", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime changedAt;
 
     public StatusHistory() {

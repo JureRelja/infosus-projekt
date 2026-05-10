@@ -35,7 +35,8 @@ public class ProjectMember {
     @JoinColumn(name = "korisnik_id", nullable = false)
     private User user;
 
-    @Column(name = "datum_dodavanja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_dodavanja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime joinedAt;
 
     public ProjectMember() {

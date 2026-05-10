@@ -31,7 +31,8 @@ public class Comment {
     @JoinColumn(name = "autor_id", nullable = false)
     private User author;
 
-    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false)
+    @Column(name = "datum_kreiranja", nullable = false, insertable = false, updatable = false,
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     public Comment() {
