@@ -106,3 +106,21 @@ Pokretanje jedne testne klase ili pojedinačne metode:
 ./gradlew test --tests "com.example.demo.controllers.TaskControllerTest"
 ./gradlew test --tests "com.example.demo.services.TaskServiceTest.create_stampsInitialStatusIdOne"
 ```
+
+## Pokretanje integration testova (backend)
+
+Integration testovi vrte cijeli slice — kontroler → servis → repository → baza — nad H2 bazom u PostgreSQL modu (in-memory, ne dira lokalni Postgres). Konfiguracija je u `backend/src/test resources/application.properties`, lookup podaci se učitavaju iz `backend/src/test/resources/integration-seed.sql`.
+
+```bash
+cd backend
+./gradlew test --tests "com.example.demo.integration.*"
+```
+
+Pokretanje pojedinačne klase:
+
+```bash
+./gradlew test --tests "com.example.demo.integration.ProjectFlowIntegrationTest"
+./gradlew test --tests "com.example.demo.integration.TaskFlowIntegrationTest"
+```
+
+Testovi koriste `@Transactional` rollback — svaki test radi u vlastitoj transakciji koja se odbacuje na kraju, pa nije potrebno ručno čišćenje baze.
